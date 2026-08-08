@@ -1,18 +1,24 @@
 package ru.sberwebview
 
 import android.annotation.SuppressLint
+import android.content.Intent
 import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
 import android.os.Bundle
 import android.view.View
-import android.view.WindowInsets
-import android.view.WindowInsetsControllerCompat
-import android.webkit.*
+import android.webkit.SslErrorHandler
+import android.webkit.WebChromeClient
+import android.webkit.WebResourceError
+import android.webkit.WebResourceRequest
+import android.webkit.WebResourceResponse
+import android.webkit.WebSettings
+import android.webkit.WebView
+import android.webkit.WebViewClient
 import androidx.appcompat.app.AppCompatActivity
-import androidx.core.view.ViewCompat
+import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.WindowInsetsControllerCompat
 import ru.sberwebview.databinding.ActivityMainBinding
-import java.io.IOException
 import javax.net.ssl.HttpsURLConnection
 
 
@@ -30,14 +36,11 @@ class MainActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        // Install the composite SSL context at the JVM level so that
-        // every HTTPS connection inside this process uses it.
         installCustomSsl()
 
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
-        // Edge‑to‑edge
         setupEdgeToEdge()
 
         webView = binding.webView
@@ -66,11 +69,11 @@ class MainActivity : AppCompatActivity() {
         super.onDestroy()
     }
 
+    @Suppress("DEPRECATION")
     override fun onBackPressed() {
         if (webView.canGoBack()) {
             webView.goBack()
         } else {
-            @Suppress("DEPRECATION")
             super.onBackPressed()
         }
     }
@@ -81,14 +84,12 @@ class MainActivity : AppCompatActivity() {
      * Replaces the default SSLSocketFactory on [HttpsURLConnection] with one
      * that trusts the bundled Russian root CAs (for Sberbank) **plus** the
      * normal system CAs (for any other resources the page may load).
-     *
-     * This is scoped to the current process only – no other app is affected.
+     * Scoped to the current process only.
      */
     private fun installCustomSsl() {
         val sslContext = SslHelper.createSslContext(this)
         HttpsURLConnection.setDefaultSSLSocketFactory(sslContext.socketFactory)
         HttpsURLConnection.setDefaultHostnameVerifier { hostname, session ->
-            // Use the built‑in hostname verifier (verifies SAN/CN)
             HttpsURLConnection.getDefaultHostnameVerifier().verify(hostname, session)
         }
     }
@@ -101,84 +102,60 @@ class MainActivity : AppCompatActivity() {
             javaScriptEnabled = true
             domStorageEnabled = true
             databaseEnabled = true
-            // Allow mixed content from Sberbank's own CDN if needed
             mixedContentMode = WebSettings.MIXED_CONTENT_NEVER_ALLOW
-            // User‑agent – mimic a normal Chrome so Sberbank serves the desktop site properly
-            userAgentString = userAgentString.replace(
-                "; wv",
-                ""
-            )
-            // Layout
+            userAgentString = userAgentString.replace("; wv", "")
             useWideViewPort = true
             loadWithOverviewMode = true
-            // Allow file access within the webview sandbox only
             allowFileAccess = false
             allowContentAccess = true
-            // Cache
             cacheMode = WebSettings.LOAD_DEFAULT
         }
 
         webView.webViewClient = object : WebViewClient() {
 
             override fun shouldOverrideUrlLoading(
-                view: WebView?,
-                request: WebResourceRequest?
+                view: WebView,
+                request: WebResourceRequest
             ): Boolean {
-                val url = request?.url?.toString() ?: return false
-                // Keep all navigation inside the WebView, but open external
-                // apps (tel:, mailto:, market:) in external handlers.
+                val url = request.url.toString()
                 return if (url.startsWith("tel:") ||
                     url.startsWith("mailto:") ||
                     url.startsWith("market:")
                 ) {
                     try {
-                        startActivity(android.content.Intent.parseUri(url, 0))
+                        startActivity(Intent.parseUri(url, 0))
                     } catch (_: Exception) { /* ignore */ }
                     true
                 } else {
-                    false // let WebView handle it
+                    false
                 }
             }
 
-            override fun onReceivedSslError(
-                view: WebView?,
-                handler: SslErrorHandler?,
-                error: SslError?
-            ) {
-                // Our custom TrustManager should prevent this for Sberbank.
-                // If it still happens, show the error view rather than silently proceeding.
-                handler?.cancel()
-                showError(
-                    getString(R.string.error_ssl_title),
-                    "${getString(R.string.error_ssl_message)}\n\n${error?.toString() ?: ""}"
-                )
-            }
 
             override fun onReceivedHttpError(
-                view: WebView?,
-                request: WebResourceRequest?,
-                errorResponse: WebResourceResponse?
+                view: WebView,
+                request: WebResourceRequest,
+                errorResponse: WebResourceResponse
             ) {
                 super.onReceivedHttpError(view, request, errorResponse)
-                // Don't show errors for sub‑resources (images, scripts, etc.)
-                if (request?.isForMainFrame == true) {
+                if (request.isForMainFrame) {
                     showError(
                         getString(R.string.error_ssl_title),
-                        "HTTP ${errorResponse?.statusCode}"
+                        "HTTP ${errorResponse.statusCode}"
                     )
                 }
             }
 
             override fun onReceivedError(
-                view: WebView?,
-                request: WebResourceRequest?,
-                error: WebResourceError?
+                view: WebView,
+                request: WebResourceRequest,
+                error: WebResourceError
             ) {
                 super.onReceivedError(view, request, error)
-                if (request?.isForMainFrame == true) {
+                if (request.isForMainFrame) {
                     showError(
                         getString(R.string.error_no_connection),
-                        error?.description?.toString() ?: ""
+                        error.description?.toString() ?: ""
                     )
                 }
             }
@@ -190,15 +167,10 @@ class MainActivity : AppCompatActivity() {
     // ─────────── UI helpers ───────────
 
     private fun setupEdgeToEdge() {
-        WindowInsetsControllerCompat(window, binding.root).let { ctrl ->
-            ctrl.isAppearanceLightStatusBars = true
-            ctrl.isAppearanceLightNavigationBars = true
-        }
-        ViewCompat.setOnApplyWindowInsetsListener(binding.root) { v, insets ->
-            val systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
-            v.setPadding(systemBars.left, 0, systemBars.right, 0)
-            insets
-        }
+        WindowCompat.setDecorFitsSystemWindows(window, false)
+        val controller = WindowCompat.getInsetsController(window, binding.root)
+        controller.isAppearanceLightStatusBars = true
+        controller.isAppearanceLightNavigationBars = true
     }
 
     private fun showProgress(show: Boolean) {
