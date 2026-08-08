@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<network-security-config>
+
+    <!-- По умолчанию: только системные сертификаты -->
+    <base-config cleartextTrafficPermitted="false">
+        <trust-anchors>
+            <certificates src="system" />
+        </trust-anchors>
+    </base-config>
+
+    <!-- Для Сбербанка: системные + наш зашитый Russian Trusted Root CA -->
+    <domain-config cleartextTrafficPermitted="false">
+        <domain includeSubdomains="true">online.sberbank.ru</domain>
+        <domain includeSubdomains="true">sberbank.ru</domain>
+        <trust-anchors>
+            <certificates src="@raw/russian_trusted_root_ca" />
+            <certificates src="system" />
+        </trust-anchors>
+    </domain-config>
+
+</network-security-config>
