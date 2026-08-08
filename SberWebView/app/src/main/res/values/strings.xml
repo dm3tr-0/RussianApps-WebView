@@ -1,0 +1,9 @@
+<resources>
+    <string name="app_name">СберОнлайн</string>
+    <string name="error_no_connection">Нет подключения к интернету</string>
+    <string name="error_ssl_title">Ошибка безопасности</string>
+    <string name="error_ssl_message">Не удалось установить защищённое соединение с сервером Сбербанка.</string>
+    <string name="retry">Повторить</string>
+    <string name="loading">Загрузка…</string>
+    <string name="title_sber_online">Сбербанк Онлайн</string>
+</resources>

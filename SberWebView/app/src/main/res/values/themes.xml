@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Base application theme -->
+    <style name="Theme.SberWebView" parent="Theme.Material3.Light.NoActionBar">
+        <item name="colorPrimary">@color/sber_green</item>
+        <item name="colorPrimaryDark">@color/sber_green_dark</item>
+        <item name="colorAccent">@color/sber_green</item>
+        <item name="android:statusBarColor">@color/sber_green</item>
+        <item name="android:navigationBarColor">@color/white</item>
+        <item name="android:windowLightStatusBar">true</item>
+    </style>
+
+    <!-- ProgressBar style -->
+    <style name="SberProgressBar" parent="Widget.AppCompat.ProgressBar.Horizontal">
+        <item name="android:progressTint">@color/sber_green</item>
+        <item name="android:indeterminateTint">@color/sber_green</item>
+        <item name="android:minHeight">3dp</item>
+        <item name="android:maxHeight">3dp</item>
+    </style>
+</resources>
