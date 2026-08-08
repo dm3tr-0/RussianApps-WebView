@@ -6,7 +6,6 @@ import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
 import android.os.Bundle
 import android.view.View
-import android.webkit.SslErrorHandler
 import android.webkit.WebChromeClient
 import android.webkit.WebResourceError
 import android.webkit.WebResourceRequest
@@ -16,10 +15,7 @@ import android.webkit.WebView
 import android.webkit.WebViewClient
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.WindowCompat
-import androidx.core.view.WindowInsetsCompat
-import androidx.core.view.WindowInsetsControllerCompat
 import ru.sberwebview.databinding.ActivityMainBinding
-import javax.net.ssl.HttpsURLConnection
 
 
 class MainActivity : AppCompatActivity() {
@@ -36,7 +32,8 @@ class MainActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        installCustomSsl()
+        // SSL обрабатывается через network_security_config.xml —
+        // никаких вызовов в коде не нужно, WebView сам подхватит.
 
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
@@ -78,22 +75,6 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    // ─────────── SSL Setup ───────────
-
-    /**
-     * Replaces the default SSLSocketFactory on [HttpsURLConnection] with one
-     * that trusts the bundled Russian root CAs (for Sberbank) **plus** the
-     * normal system CAs (for any other resources the page may load).
-     * Scoped to the current process only.
-     */
-    private fun installCustomSsl() {
-        val sslContext = SslHelper.createSslContext(this)
-        HttpsURLConnection.setDefaultSSLSocketFactory(sslContext.socketFactory)
-        HttpsURLConnection.setDefaultHostnameVerifier { hostname, session ->
-            HttpsURLConnection.getDefaultHostnameVerifier().verify(hostname, session)
-        }
-    }
-
     // ─────────── WebView ───────────
 
     @SuppressLint("SetJavaScriptEnabled")
@@ -130,7 +111,6 @@ class MainActivity : AppCompatActivity() {
                     false
                 }
             }
-
 
             override fun onReceivedHttpError(
                 view: WebView,
@@ -173,13 +153,9 @@ class MainActivity : AppCompatActivity() {
         controller.isAppearanceLightNavigationBars = true
     }
 
-    private fun showProgress(show: Boolean) {
-        binding.progressBar.visibility = if (show) View.VISIBLE else View.GONE
-    }
-
     private fun showError(title: String, message: String) {
         webView.visibility = View.GONE
-        showProgress(false)
+        binding.progressBar.visibility = View.GONE
         binding.errorView.visibility = View.VISIBLE
         binding.errorTitle.text = title
         binding.errorMessage.text = message
